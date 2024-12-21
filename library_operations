@@ -1,0 +1,336 @@
+import java.util.*;
+
+interface LibraryOperations {
+    void addBook(Book book);
+    void removeBook(String bookCode);
+    void borrowBook(String bookCode, String username);
+    void returnBook(String bookCode, String username);
+    List<Book> getAllBooks();
+    List<Book> getBooksByCategory(String category);
+    Book getBook(String bookCode);
+}
+
+class Book {
+    private String code;
+    private String title;
+    private String author;
+    private String category;
+    private boolean isAvailable;
+
+    public Book(String code, String title, String author, String category) {
+        this.code = code;
+        this.title = title;
+        this.author = author;
+        this.category = category;
+        this.isAvailable = true;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getAuthor() {
+        return author;
+    }
+
+    public String getCategory() {
+        return category;
+    }
+
+    public boolean isAvailable() {
+        return isAvailable;
+    }
+
+    public void borrow() {
+        if (isAvailable) {
+            isAvailable = false;
+        } else {
+            throw new IllegalStateException("Book is already borrowed.");
+        }
+    }
+
+    public void returnBook() {
+        isAvailable = true;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Code: %s, Title: %s, Author: %s, Category: %s, Available: %b", code, title, author, category, isAvailable);
+    }
+}
+
+class Library implements LibraryOperations {
+    private Map<String, Book> books;
+    private Map<String, List<Book>> userBorrowedBooks;
+
+    public Library() {
+        books = new HashMap<>();
+        userBorrowedBooks = new HashMap<>();
+    }
+
+    @Override
+    public void addBook(Book book) {
+        books.put(book.getCode(), book);
+        System.out.println("Book added successfully: " + book);
+    }
+
+    @Override
+    public void removeBook(String bookCode) {
+        Book book = books.remove(bookCode);
+        if (book != null) {
+            System.out.println("Book removed: " + book);
+        } else {
+            System.out.println("Book not found.");
+        }
+    }
+
+    @Override
+    public void borrowBook(String bookCode, String username) {
+        Book book = books.get(bookCode);
+        if (book != null) {
+            if (book.isAvailable()) {
+                book.borrow();
+                userBorrowedBooks.putIfAbsent(username, new ArrayList<>());
+                userBorrowedBooks.get(username).add(book);
+                System.out.println(username + " borrowed: " + book);
+            } else {
+                System.out.println("Book is not available for borrowing.");
+            }
+        } else {
+            System.out.println("Book not found.");
+        }
+    }
+
+    @Override
+    public void returnBook(String bookCode, String username) {
+        List<Book> borrowedBooks = userBorrowedBooks.get(username);
+        if (borrowedBooks != null) {
+            for (Book book : borrowedBooks) {
+                if (book.getCode().equals(bookCode)) {
+                    book.returnBook();
+                    borrowedBooks.remove(book);
+                    System.out.println(username + " returned: " + book);
+                    return;
+                }
+            }
+        }
+        System.out.println("No record of borrowed book found for the user.");
+    }
+
+    @Override
+    public List<Book> getAllBooks() {
+        return new ArrayList<>(books.values());
+    }
+
+    @Override
+    public List<Book> getBooksByCategory(String category) {
+        List<Book> result = new ArrayList<>();
+        for (Book book : books.values()) {
+            if (book.getCategory().equalsIgnoreCase(category)) {
+                result.add(book);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public Book getBook(String bookCode) {
+        return books.get(bookCode);
+    }
+}
+
+class User {
+    private String username;
+    private String password;
+    private Role role;
+
+    public User(String username, String password, Role role) {
+        this.username = username;
+        this.password = password;
+        this.role = role;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+}
+
+enum Role {
+    ADMIN, MEMBER
+}
+
+class UserManagement {
+    private Map<String, User> users;
+
+    public UserManagement() {
+        users = new HashMap<>();
+        users.put("admin", new User("admin", "admin123", Role.ADMIN));
+        users.put("john", new User("john", "john123", Role.MEMBER));
+        users.put("alice", new User("alice", "alice123", Role.MEMBER));
+    }
+
+    public User authenticate(String username, String password) {
+        User user = users.get(username);
+        if (user != null && user.getPassword().equals(password)) {
+            return user;
+        }
+        return null;
+    }
+
+    public void addUser(User user) {
+        users.put(user.getUsername(), user);
+    }
+}
+
+public class LibraryManagementSystem {
+    private static Scanner scanner = new Scanner(System.in);
+    private static Library library = new Library();
+    private static UserManagement userManagement = new UserManagement();
+
+    public static void main(String[] args) {
+        User loggedInUser = login();
+
+        if (loggedInUser != null) {
+            if (loggedInUser.getRole() == Role.ADMIN) {
+                adminMenu();
+            } else if (loggedInUser.getRole() == Role.MEMBER) {
+                memberMenu(loggedInUser.getUsername());
+            }
+        } else {
+            System.out.println("Invalid credentials, exiting...");
+        }
+    }
+
+    private static User login() {
+        System.out.print("Enter username: ");
+        String username = scanner.nextLine();
+        System.out.print("Enter password: ");
+        String password = scanner.nextLine();
+        return userManagement.authenticate(username, password);
+    }
+
+    private static void adminMenu() {
+        int choice;
+        do {
+            System.out.println("\n--- Admin Menu ---");
+            System.out.println("1. Add Book");
+            System.out.println("2. Remove Book");
+            System.out.println("3. View All Books");
+            System.out.println("4. View Books by Category");
+            System.out.println("5. Logout");
+            System.out.print("Enter choice: ");
+            choice = scanner.nextInt();
+            scanner.nextLine();  // Consume newline
+
+            switch (choice) {
+                case 1:
+                    addBookMenu();
+                    break;
+                case 2:
+                    removeBookMenu();
+                    break;
+                case 3:
+                    viewAllBooks();
+                    break;
+                case 4:
+                    viewBooksByCategory();
+                    break;
+                case 5:
+                    System.out.println("Logged out successfully.");
+                    break;
+                default:
+                    System.out.println("Invalid choice.");
+            }
+        } while (choice != 5);
+    }
+
+    private static void addBookMenu() {
+        System.out.print("Enter book code: ");
+        String code = scanner.nextLine();
+        System.out.print("Enter book title: ");
+        String title = scanner.nextLine();
+        System.out.print("Enter author name: ");
+        String author = scanner.nextLine();
+        System.out.print("Enter book category: ");
+        String category = scanner.nextLine();
+
+        Book book = new Book(code, title, author, category);
+        library.addBook(book);
+    }
+
+    private static void removeBookMenu() {
+        System.out.print("Enter book code to remove: ");
+        String code = scanner.nextLine();
+        library.removeBook(code);
+    }
+
+    private static void viewAllBooks() {
+        List<Book> books = library.getAllBooks();
+        if (books.isEmpty()) {
+            System.out.println("No books in the library.");
+        } else {
+            for (Book book : books) {
+                System.out.println(book);
+            }
+        }
+    }
+
+    private static void viewBooksByCategory() {
+        System.out.print("Enter category: ");
+        String category = scanner.nextLine();
+        List<Book> books = library.getBooksByCategory(category);
+        if (books.isEmpty()) {
+            System.out.println("No books found in this category.");
+        } else {
+            for (Book book : books) {
+                System.out.println(book);
+            }
+        }
+    }
+
+    private static void memberMenu(String username) {
+        int choice;
+        do {
+            System.out.println("\n--- Member Menu ---");
+            System.out.println("1. Borrow Book");
+            System.out.println("2. Return Book");
+            System.out.println("3. View All Books");
+            System.out.println("4. Logout");
+            System.out.print("Enter choice: ");
+            choice = scanner.nextInt();
+            scanner.nextLine();  // Consume newline
+
+            switch (choice) {
+                case 1:
+                    borrowBookMenu(username);
+                    break;
+                case 2:
+                    returnBookMenu(username);
+                    break;
+                case 3:
+                    viewAllBooks();
+                    break;
+                case 4:
+                    System.out.println("Logged out successfully.");
+                    break;
+                default:
+                    System.out.println("Invalid choice.");
+            }
+        } while (choice != 4);
+    }
+
+    private static void borrowBookMenu(String username) {
+        System.out.print("Enter book code to borrow: ");
+        String code
